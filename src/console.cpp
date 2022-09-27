@@ -8,14 +8,14 @@
 
 void rez::con::attach( const std::string_view& title )
 {
-	auto throw_error{ [] ( )
+	auto throw_error{ []( const std::string& msg )
 	{
 		const auto error{
 			std::system_category( ).message( ::GetLastError( ) )
 		};
 
 		throw std::runtime_error{
-			std::string{ "[rez::con::attach] " } + error
+			msg + error
 		};
 	} };
 
@@ -25,38 +25,16 @@ void rez::con::attach( const std::string_view& title )
 		{
 			if ( ::GetLastError( ) == ERROR_INVALID_PARAMETER )
 			{
-				throw_error( );
+				throw_error( "AttachConsole: " );
 			}
 
 			else
 			{
 				if ( !::AllocConsole( ) )
 				{
-					throw_error( );
+					throw_error( "AllocConsole: " );
 				}
 			}
-		}
-	}
-
-	auto handle{ ::GetStdHandle( STD_OUTPUT_HANDLE ) };
-
-	if ( handle == INVALID_HANDLE_VALUE )
-	{
-		throw_error( );
-	}
-
-	auto mode{ 0ul };
-
-	if ( !::GetConsoleMode( handle, &mode ) )
-	{
-		throw_error( );
-	}
-
-	if ( !( mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING ) )
-	{
-		if ( !::SetConsoleMode( handle, mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING ) )
-		{
-			throw_error( );
 		}
 	}
 
