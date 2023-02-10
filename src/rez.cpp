@@ -334,6 +334,45 @@ void rez::c_rez_file::extract_to_file( const path_t& output )
 							m_reader.seek( pos + static_cast< std::streamoff >( step ) );
 							m_reader.read( data[ 0u ], step_size );
 
+							if ( step == 0u )
+							{
+								/**
+								 * dtx file extension
+								 */
+								static constexpr auto DTX_EXT_A{ "dtx" };
+								static constexpr auto DTX_EXT_B{ "DTX" };
+
+								/**
+								 * dtx header version
+								 */
+								static constexpr auto DTX_VER_LT1{ -2 };
+								static constexpr auto DTX_VER_LT15{ -3 };
+								static constexpr auto DTX_VER_LT2{ -5 };
+
+								if ( ( res.m_type == DTX_EXT_A ) ||
+									 ( res.m_type == DTX_EXT_B ) )
+								{
+									/**
+									 * the dtx version in the header starts at offset 8, in some files it starts at offset 4
+									 * so we need to swap these bytes, this way the file doesn't
+									 * need to go through the dtx convert
+									 */
+									if ( data[ 0x4 ] != DTX_VER_LT1 &&
+										 data[ 0x4 ] != DTX_VER_LT15 &&
+										 data[ 0x4 ] != DTX_VER_LT2 )
+									{
+										std::array< char, 4u > lhs_bytes{};
+										std::array< char, 4u > rhs_bytes{};
+
+										std::memcpy( lhs_bytes.data(), &data[ 0x4 ], lhs_bytes.size() );
+										std::memcpy( rhs_bytes.data(), &data[ 0x8 ], rhs_bytes.size() );
+
+										std::memcpy( &data[ 0x4 ], rhs_bytes.data(), rhs_bytes.size() );
+										std::memcpy( &data[ 0x8 ], lhs_bytes.data(), lhs_bytes.size() );
+									}
+								}
+							}
+
 							out.write( data.get( ), step_size );
 
 							step += step_size;
