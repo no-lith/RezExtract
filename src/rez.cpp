@@ -104,13 +104,63 @@ void rez::c_rez_file::extract_to_file( const path_t& output )
 			return str;
 		} };
 
+		// cr version (1 or 2)
+		enum cr_ : char {
+			cr1_v1 = 0x26,
+			cr2_v1 = 0x21,
+			cr3_v1 = 0x25,
+
+			cr1_v2 = 0xD,
+			cr2_v2 = cr1_v2,
+			cr3_v2 = cr2_v2,
+		};
+
+		// lf version (1 or 2)
+		enum lf_ : char {
+			lf1_v1 = 0x23,
+			lf2_v1 = 0x22,
+			lf3_v1 = 0x27,
+
+			lf1_v2 = 0xA,
+			lf2_v2 = lf1_v2,
+			lf3_v2 = lf2_v2,
+		};
+
+		// rez version
+		enum class rez {
+			unknown   = 0,
+
+			version_1 = 1,
+			version_2 = 2 
+		};
+
+		// use cr1 and lf1 to determine the version
+		m_header.m_cr1                   = m_reader.read< char >( );
+		m_header.m_lf1                   = m_reader.read< char >( );
+
+		auto rez_version{ rez::unknown };
+
+		if ( m_header.m_cr1 == cr1_v1 &&
+			 m_header.m_lf1 == lf1_v1 )
+		{
+			rez_version = rez::version_1;
+		}
+
+		if ( m_header.m_cr1 == cr1_v2 &&
+			 m_header.m_lf1 == lf1_v2 )
+		{
+			rez_version = rez::version_2;
+		}
+
+		if ( rez_version == rez::unknown )
+		{
+			throw std::runtime_error{ "invalid rez version" };
+		}
+
 		std::array< char, 60u > file_type{};
 		std::array< char, 60u > user_title{};
 		std::array< char, 32u + 1u > encode{};
 		std::array< char, 32u + 1u > detect_encode{};
-
-		m_header.m_cr1                   = m_reader.read< char >( );
-		m_header.m_lf1                   = m_reader.read< char >( );
 
 		m_reader.read(
 			file_type[ 0 ],
@@ -131,109 +181,128 @@ void rez::c_rez_file::extract_to_file( const path_t& output )
 
 		m_header.m_cr3                   = m_reader.read< char >( );
 		m_header.m_lf3                   = m_reader.read< char >( );
-		m_header.m_eof1                  = m_reader.read< char >( );
-		m_header.m_head                  = m_reader.read< char >( );
 
-		m_reader.read(
-			encode[ 0 ],
-			encode.size( ) - 1u
-		);
+		if ( rez_version == rez::version_1 )
+		{
+			m_header.m_eof1                  = m_reader.read< char >( );
+			m_header.m_head                  = m_reader.read< char >( );
 
-		m_header.m_encode                = encode.data( );
+			m_reader.read(
+				encode[ 0 ],
+				encode.size( ) - 1u
+			);
 
-		m_header.m_tail                  = m_reader.read< char >( );
-		m_header.m_detect_head           = m_reader.read< char >( );
+			m_header.m_encode                = encode.data( );
 
-		m_reader.read(
-			detect_encode[ 0 ],
-			detect_encode.size( ) - 1u
-		);
+			m_header.m_tail                  = m_reader.read< char >( );
+			m_header.m_detect_head           = m_reader.read< char >( );
 
-		m_header.m_detect_encode         = detect_encode.data( );
+			m_reader.read(
+				detect_encode[ 0 ],
+				detect_encode.size( ) - 1u
+			);
 
-		m_header.m_detect_tail           = m_reader.read< char >( );
+			m_header.m_detect_encode         = detect_encode.data( );
 
-		m_header.m_file_format_version   = m_reader.read( );
-		m_header.m_root_dir_pos          = m_reader.read( );
-		m_header.m_root_dir_size         = m_reader.read( );
-		m_header.m_root_dir_time         = m_reader.read( );
-		m_header.m_next_write_pos        = m_reader.read( );
-		m_header.m_time                  = m_reader.read( );
-		m_header.m_largest_key_ary       = m_reader.read( );
-		m_header.m_largest_dir_name_size = m_reader.read( );
-		m_header.m_largest_rez_name_size = m_reader.read( );
-		m_header.m_largest_comment_size  = m_reader.read( );
+			m_header.m_detect_tail           = m_reader.read< char >( );
 
-		m_header.m_is_sorted             = m_reader.read< char >( );
+			m_header.m_file_format_version   = m_reader.read( );
 
-		std::string cenc( m_header.m_detect_encode.size( ), '\0' );
-		std::to_chars(
-			cenc.data( ),
-			cenc.data( ) + cenc.size( ),
-			std::atol( m_header.m_encode.data( ) ) ^ 0x16B4423 // magic number
-		);
+			m_header.m_root_dir_pos          = m_reader.read( );
+			m_header.m_root_dir_size         = m_reader.read( );
+			m_header.m_root_dir_time         = m_reader.read( );
+			m_header.m_next_write_pos        = m_reader.read( );
+			m_header.m_time                  = m_reader.read( );
+			m_header.m_largest_key_ary       = m_reader.read( );
+			m_header.m_largest_dir_name_size = m_reader.read( );
+			m_header.m_largest_rez_name_size = m_reader.read( );
+			m_header.m_largest_comment_size  = m_reader.read( );
+
+			m_header.m_is_sorted             = m_reader.read< char >( );
+		}
+
+		else
+		{
+			m_reader.seek(
+				m_reader.tell() + 0x8
+			); // skip 8 bytes (unknown)
+
+			m_header.m_file_format_version = m_reader.read();
+
+			m_header.m_root_dir_pos        = m_reader.read();
+			m_header.m_root_dir_size       = m_reader.read();
+
+			// the remaining bytes of the header are unknown...
+		}
 
 		try
 		{
-			if ( m_header.m_detect_head != ( m_header.m_head ^ 0x11 )  )
-			{
-				throw std::runtime_error{ "(detect head) differs from (head ^ 0x11)" };
-			}
-
-			if ( m_header.m_detect_encode != cenc )
-			{
-				throw std::runtime_error{ "(detect encode) differs from (encode)" };
-			}
-
-			if ( m_header.m_detect_tail != ( m_header.m_tail ^ 0x11 ) )
-			{
-				throw std::runtime_error{ "(detect tail) differs from (tail ^ 0x11)" };
-			}
-
-			if ( ( m_header.m_cr1 != 0x26 ) && ( m_header.m_cr1 != 0xD ) )
-			{
-				throw std::runtime_error{ "invalid cr1" };
-			}
-
-			if ( ( m_header.m_cr2 != 0x21 ) && ( m_header.m_cr2 != 0xD ) )
+			if ( ( m_header.m_cr2 != cr2_v1 ) && ( m_header.m_cr2 != cr2_v2 ) )
 			{
 				throw std::runtime_error{ "invalid cr2" };
 			}
 
-			if ( ( m_header.m_cr3 != 0x25 ) && ( m_header.m_cr3 != 0xD ) )
+			if ( ( m_header.m_cr3 != cr3_v1 ) && ( m_header.m_cr3 != cr3_v2 ) )
 			{
 				throw std::runtime_error{ "invalid cr3" };
 			}
 
-			if ( ( m_header.m_lf1 != 0x23 ) && ( m_header.m_lf1 != 0xA ) )
-			{
-				throw std::runtime_error{ "invalid lf1" };
-			}
-
-			if ( ( m_header.m_lf2 != 0x22 ) && ( m_header.m_lf2 != 0xA ) )
+			if ( ( m_header.m_lf2 != lf2_v1 ) && ( m_header.m_lf2 != lf2_v2 ) )
 			{
 				throw std::runtime_error{ "invalid lf2" };
 			}
 
-			if ( ( m_header.m_lf3 != 0x27 ) && ( m_header.m_lf3 != 0xA ) )
+			if ( ( m_header.m_lf3 != lf3_v1 ) && ( m_header.m_lf3 != lf3_v2 ) )
 			{
 				throw std::runtime_error{ "invalid lf3" };
 			}
 
+			if ( rez_version == rez::version_1 )
+			{
+				if ( m_header.m_detect_head != ( m_header.m_head ^ 0x11 ) )
+				{
+					throw std::runtime_error{ "(detect head) differs from (head ^ 0x11)" };
+				}
+
+				std::string cenc( m_header.m_detect_encode.size(), '\0' );
+				std::to_chars(
+					cenc.data(),
+					cenc.data() + cenc.size(),
+					std::atol( m_header.m_encode.data() ) ^ 0x16B4423 // magic number
+				);
+
+				if ( m_header.m_detect_encode != cenc )
+				{
+					throw std::runtime_error{ "(detect encode) differs from (encode)" };
+				}
+
+				if ( m_header.m_detect_tail != ( m_header.m_tail ^ 0x11 ) )
+				{
+					throw std::runtime_error{ "(detect tail) differs from (tail ^ 0x11)" };
+				}
+			}
+
 			if ( ( m_header.m_file_format_version != 0x1 ) &&
-				 ( m_header.m_file_format_version != 0x24D00 ) )
+				 ( m_header.m_file_format_version != 0x2 ) )
 			{
 				throw std::runtime_error{ "invalid file format version" };
 			}
-
 		}
 		catch ( const std::exception& e )
 		{
-			throw std::runtime_error{ std::string{ }.
-				append( "header failed with '" ).
-				append( e.what( ) ).
-				append( "'." )
-			};
+			std::string error{};
+
+			error.append(
+				rez_version == rez::version_1 ? "( version 1 )" : "( version 2 )"
+			);
+
+			error.append( " header failed with '" );
+
+			error.append( e.what() );
+
+			error.append( "'." );
+
+			throw std::runtime_error{ error };
 		}
 	}
 
