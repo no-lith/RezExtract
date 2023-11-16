@@ -181,10 +181,10 @@ void rez::c_rez_file::extract_to_file( const path_t& output )
 
 		m_header.m_cr3                   = m_reader.read< char >( );
 		m_header.m_lf3                   = m_reader.read< char >( );
+		m_header.m_eof1                  = m_reader.read< char >( );
 
 		if ( rez_version == rez::version_1 )
 		{
-			m_header.m_eof1                  = m_reader.read< char >( );
 			m_header.m_head                  = m_reader.read< char >( );
 
 			m_reader.read(
@@ -205,36 +205,22 @@ void rez::c_rez_file::extract_to_file( const path_t& output )
 			m_header.m_detect_encode         = detect_encode.data( );
 
 			m_header.m_detect_tail           = m_reader.read< char >( );
-
-			m_header.m_file_format_version   = m_reader.read( );
-
-			m_header.m_root_dir_pos          = m_reader.read( );
-			m_header.m_root_dir_size         = m_reader.read( );
-			m_header.m_root_dir_time         = m_reader.read( );
-			m_header.m_next_write_pos        = m_reader.read( );
-			m_header.m_time                  = m_reader.read( );
-			m_header.m_largest_key_ary       = m_reader.read( );
-			m_header.m_largest_dir_name_size = m_reader.read( );
-			m_header.m_largest_rez_name_size = m_reader.read( );
-			m_header.m_largest_comment_size  = m_reader.read( );
-
-			m_header.m_is_sorted             = m_reader.read< char >( );
 		}
 
-		else
-		{
-			m_reader.seek(
-				m_reader.tell() + 0x8
-			); // skip 8 bytes (unknown)
+		m_header.m_file_format_version   = m_reader.read( );
 
-			m_header.m_file_format_version = m_reader.read();
+		m_header.m_root_dir_pos          = m_reader.read( );
+		m_header.m_root_dir_size         = m_reader.read( );
+		m_header.m_root_dir_time         = m_reader.read( );
+		m_header.m_next_write_pos        = m_reader.read( );
+		m_header.m_time                  = m_reader.read( );
+		m_header.m_largest_key_ary       = m_reader.read( );
+		m_header.m_largest_dir_name_size = m_reader.read( );
+		m_header.m_largest_rez_name_size = m_reader.read( );
+		m_header.m_largest_comment_size  = m_reader.read( );
 
-			m_header.m_root_dir_pos        = m_reader.read();
-			m_header.m_root_dir_size       = m_reader.read();
-
-			// the remaining bytes of the header are unknown...
-		}
-
+		m_header.m_is_sorted             = m_reader.read< char >( );
+		
 		try
 		{
 			if ( ( m_header.m_cr2 != cr2_v1 ) && ( m_header.m_cr2 != cr2_v2 ) )
