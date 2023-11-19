@@ -300,7 +300,7 @@ void rez::c_rez_file::extract( const std::filesystem::path& output )
 		//
 		std::vector< std::string_view > v{ dir.m_name };
 
-		if ( dir.m_owner_index != std::numeric_limits<std::uint32_t>::max() )
+		if ( dir.m_owner_index != std::numeric_limits<std::size_t>::max() )
 		{
 			v.reserve( dir.m_owner_index );
 
@@ -313,7 +313,7 @@ void rez::c_rez_file::extract( const std::filesystem::path& output )
 
 				i = dir_owner.m_owner_index;
 			}
-			while ( i != std::numeric_limits<std::uint32_t>::max() );
+			while ( i != std::numeric_limits<std::size_t>::max() );
 		}
 
 		for ( auto it = v.rbegin(); it != v.rend(); ++it )
