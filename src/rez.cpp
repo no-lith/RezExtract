@@ -355,7 +355,7 @@ void rez::c_rez_file::extract( const std::filesystem::path& output )
 						m_reader.seek( pos + static_cast< std::streamoff >( step ) );
 						m_reader.read( data[ 0u ], step_size );
 
-						if ( step == 0u )
+						if ( g_dtx_to_lithtech && step == 0u )
 						{
 							/**
 							 * DTX file extension

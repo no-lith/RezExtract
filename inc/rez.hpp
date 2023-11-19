@@ -6,7 +6,7 @@
 namespace rez
 {
 
-inline std::int32_t g_convert_dtx = -1;
+inline bool g_dtx_to_lithtech = false;
 
 void extract( const std::vector<std::filesystem::path>& file_path, const std::filesystem::path& save_path );
 

@@ -46,6 +46,15 @@ int main( )
 			}
 		}
 
+		const std::int32_t res = ::MessageBoxA(
+			::GetConsoleWindow(),
+			"Convert DTX files to Lithtech?",
+			"DTX",
+			MB_YESNO | MB_ICONQUESTION
+		);
+
+		rez::g_dtx_to_lithtech = ( res == IDYES );
+
 		rez::extract( file_path, save_path );
 	}
 	catch ( const std::exception& e )
