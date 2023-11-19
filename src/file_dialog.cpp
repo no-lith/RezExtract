@@ -1,151 +1,122 @@
+#include "pch.hpp"
 #include "file_dialog.hpp"
 
-#include <algorithm>
-#include <string_view>
-#include <stdexcept>
-#include <system_error>
+static constexpr auto MAX_BUFFER_SIZE = 0x1000;
 
-#include <objbase.h>
-#include <shlobj_core.h>
-#include <windows.h>
-
-auto rez::fdg::open( ) -> std::vector<std::filesystem::path>
+auto rez::fdg::open_file(
+	const std::string_view title,
+	const std::string_view filter,
+	const HWND hwnd
+) -> std::vector<std::filesystem::path>
 {
-	constexpr const char* filter{ "Rez File (*.rez)\0*.rez\0" };
+	if ( title.empty() )
+		REZ_THROW( "File dialog: Empty title" );
 
-	OPENFILENAMEA ofn{ sizeof( OPENFILENAMEA ) };
+	if ( filter.empty() )
+		REZ_THROW( "File dialog: Empty filter" );
 
-	char file_path[ 4096 ]{};
+	OPENFILENAMEA ofn = { sizeof( OPENFILENAMEA ) };
 
-	ofn.hwndOwner    = ::GetConsoleWindow( );
-	ofn.lpstrFile    = file_path;
-	ofn.nMaxFile     = sizeof( file_path );
-	ofn.lpstrFilter  = filter;
+	auto buffer = std::make_unique< char[] >( MAX_BUFFER_SIZE );
+
+	ofn.hwndOwner    = hwnd;
+	ofn.lpstrFile    = buffer.get();
+	ofn.nMaxFile     = MAX_BUFFER_SIZE;
+	ofn.lpstrFilter  = filter.data();
 	ofn.nFilterIndex = 1;
+	ofn.lpstrTitle   = title.data();
 	ofn.Flags        = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_EXPLORER | OFN_ALLOWMULTISELECT;
 
 	if ( ::GetOpenFileNameA( &ofn ) )
 	{
-		// all files selected
-		std::vector<std::string> f{};
+		std::string_view file     = ofn.lpstrFile;
+		std::string_view filename = ofn.lpstrFile + file.size() + 1u;
 
-		// get directory
-		std::string dir{ ofn.lpstrFile };
-
-		// get first entry
-		char* str{ ofn.lpstrFile + dir.size( ) + 1u };
-
-		// run through entries
-		while ( *str )
+		// multiple entries
+		if ( !filename.empty() )
 		{
-			// add entry
-			f.emplace_back( str );
+			std::vector<std::filesystem::path> entries = {};
 
-			// go to next entry
-			str += f.back( ).size( ) + 1u;
+			do
+			{
+				// directory / filename
+				entries.emplace_back( file ) /= filename;
+
+				// next entry
+				filename = filename.data() + filename.size() + 1u;
+			}
+			while ( !filename.empty() );
+
+			return entries;
 		}
-
-		// has one entry
-		if ( f.empty( ) )
-		{
-			f.emplace_back( std::move( dir ) );
-		}
-
-		// has multiple entries
+		// single entry
 		else
 		{
-			// add directory path
-			std::for_each( f.begin( ), f.end( ), [&] ( auto& s )
-			{
-				s.insert( 0u, dir + "\\" );
-			} );
+			return std::vector<std::filesystem::path>( { file } );
 		}
-
-		return std::vector<std::filesystem::path>{ f.begin( ), f.end( ) };
 	}
 
 	else
 	{
-		std::string error{};
-
-		if ( ::GetLastError( ) == ERROR_SUCCESS )
-		{
-			error = "select any file";
-		}
-
+		if ( ::GetLastError() == ERROR_SUCCESS )
+			REZ_THROW( "File dialog: Select any file" );
 		else
-		{
-			error = std::system_category( ).message( ::GetLastError( ) );
-		}
-
-		throw std::runtime_error{
-			std::string{ "[file dialog open] " } + error
-		};
+			REZ_THROW( "File dialog: {:s}", std::system_category().message( ::GetLastError() ) );
 	}
 }
 
-auto rez::fdg::save( ) -> std::wstring
+auto rez::fdg::open_folder(
+	const std::wstring_view title,
+	const HWND hwnd
+) -> std::filesystem::path
 {
-    std::wstring result{};
+	using Microsoft::WRL::ComPtr;
 
-	if ( ::CoInitialize( nullptr ) == S_OK )
+	struct co_scoped
 	{
-		IFileOpenDialog* p_fd{};
+		co_scoped()  { ::CoInitialize( nullptr );  }
+		~co_scoped() { ::CoUninitialize(); }
+	} co;
 
-		if ( ::CoCreateInstance( CLSID_FileOpenDialog, nullptr, CLSCTX_ALL, IID_IFileOpenDialog, reinterpret_cast< void** >( &p_fd ) ) == S_OK )
-		{
-			FILEOPENDIALOGOPTIONS curr_opts{};
-			if ( p_fd->GetOptions( &curr_opts ) == S_OK )
-			{
-				p_fd->SetOptions( curr_opts | FOS_PATHMUSTEXIST | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM );
-			}
+	HRESULT result = S_OK;
 
-			if ( p_fd->Show( ::GetConsoleWindow( ) ) == S_OK )
-			{
-				IShellItem* p_si{};
-				if ( p_fd->GetResult( &p_si ) == S_OK )
-				{
-					wchar_t* wpath{};
-					if ( p_si->GetDisplayName( SIGDN_FILESYSPATH, &wpath ) == S_OK )
-					{
-						result = wpath;
+	ComPtr<IFileOpenDialog> fd{};
 
-						::CoTaskMemFree( std::exchange( wpath, nullptr ) );
-					}
+	if ( FAILED( result = ::CoCreateInstance( CLSID_FileOpenDialog, nullptr, CLSCTX_ALL, IID_IFileOpenDialog, reinterpret_cast< void** >( fd.GetAddressOf() ) ) ) )
+		REZ_THROW( "File dialog (CoCreateInstance): {:#x}", ( ULONG ) result );
 
-					p_si->Release( );
-					p_si = nullptr;
-				}
-			}
+	FILEOPENDIALOGOPTIONS curr_opts{};
+	if ( FAILED( result = fd->GetOptions( &curr_opts ) ) )
+		REZ_THROW( "File dialog (GetOptions): {:#x}", ( ULONG ) result );
 
-			p_fd->Release( );
-			p_fd = nullptr;
-		}
+	if ( FAILED( result = fd->SetOptions( curr_opts | FOS_PATHMUSTEXIST | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM ) ) )
+		REZ_THROW( "File dialog (SetOptions): {:#x}", ( ULONG ) result );
 
-		::CoUninitialize( );
-	}
+	if ( FAILED( result = fd->SetTitle( title.data() ) ) )
+		REZ_THROW( "File dialog (SetTitle): {:#x}", ( ULONG ) result );
 
-	if ( result.empty( ) )
+	if ( FAILED( result = fd->Show( hwnd ) ) )
 	{
-		std::string error{};
-
-		if ( ::GetLastError( ) == ERROR_SUCCESS )
-		{
-			error = "select a path to save files";
-		}
-		
+		if ( result == HRESULT_FROM_WIN32( ERROR_CANCELLED ) )
+			REZ_THROW( "File dialog: Select any folder" );
 		else
-		{
-			error = std::system_category( ).message( ::GetLastError( ) );
-		}
-
-		throw std::runtime_error{
-			std::string{ "[file dialog save] " } + error
-		};
+			REZ_THROW( "File dialog (Show): {:#x}", ( ULONG ) result );
 	}
 
-	else
+	ComPtr<IShellItem> si{};
+	if ( FAILED( result = fd->GetResult( si.GetAddressOf() ) ) )
+		REZ_THROW( "File dialog (GetResult): {:#x}", ( ULONG ) result );
+
+	struct mem_scoped
 	{
-		return result;
-	}
+		mem_scoped() {}
+		~mem_scoped() { if ( this->data ) ::CoTaskMemFree( this->data ); }
+
+		wchar_t* data;
+	} mem ;
+
+	if ( FAILED( result = si->GetDisplayName( SIGDN_FILESYSPATH, &mem.data ) ) )
+		REZ_THROW( "File dialog (GetDisplayName): {:#x}", ( ULONG ) result );
+
+	return std::filesystem::path( mem.data );
 }
