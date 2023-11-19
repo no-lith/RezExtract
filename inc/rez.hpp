@@ -3,21 +3,12 @@
 
 #pragma once
 
-#include <filesystem>
-#include <string>
-#include <vector>
+namespace rez
+{
 
-namespace rez {
+inline std::int32_t g_convert_dtx = -1;
 
-/**
- * @brief 
- * @param file_path 
- * @param save_path 
- */
-void extract(
-	const std::vector<std::filesystem::path>& file_path,
-	const std::wstring& save_path
-);
+void extract( const std::vector<std::filesystem::path>& file_path, const std::filesystem::path& save_path );
 
 }
 

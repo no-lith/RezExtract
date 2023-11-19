@@ -3,20 +3,11 @@
 
 #pragma once
 
-#include <cstdint>
-#include <filesystem>
-#include <fstream>
-#include <memory>
-#include <stdexcept>
-#include <string>
-#include <string_view>
+namespace rez
+{
 
-namespace rez {
-
-/**
- * @brief 
- */
-class c_reader {
+class c_reader
+{
 public:
 	c_reader(
 		const std::filesystem::path& path
@@ -32,37 +23,31 @@ public:
 			);
 
 			m_stream.open(
-				path.wstring( ).data( ),
+				path.wstring().data(),
 				std::ios::binary
 			);
 		}
 		catch ( const std::ios_base::failure& e )
 		{
-			throw std::runtime_error{
-				std::string{ "stream.open(): " } + e.what( )
-			};
+			REZ_THROW( " - ifstream: {:s}", e.what() );
 		}
 	}
-	~c_reader( ) = default;
+	~c_reader() = default;
 public:
 	template< typename T >
-	void read( T& v, const std::size_t& size )
+	auto read( T& v, const std::size_t& size ) -> void
 	{
 		m_stream.read(
 			reinterpret_cast< char* >( &v ),
 			size
 		);
 
-		if ( m_stream.gcount( ) != size )
-		{
-			throw std::runtime_error{
-				"stream.gcount() differs from v.size()"
-			};
-		}
+		if ( m_stream.gcount() != size )
+			REZ_THROW( " - ifstream: invalid read (Expected: {:d} | Current: {:d}", size, m_stream.gcount() );
 	}
 
 	template< typename T = std::uint32_t >
-	T read( )
+	auto read() -> T
 	{
 		T v{};
 
@@ -71,43 +56,44 @@ public:
 		return v;
 	}
 
-	char peek( )
+	auto peek() -> char
 	{
-		return static_cast< char >( m_stream.peek( ) );
+		return static_cast< char >( m_stream.peek() );
 	}
 
 	template< typename T = std::uint16_t >
-	std::string read_string( )
+	auto read_string() -> std::string
 	{
-		std::string str( this->read< T >( ), '\0' );
+		std::string str( this->read< T >(), '\0' );
 
-		if ( !str.empty( ) )
+		if ( !str.empty() )
 		{
 			this->read(
 				str[ 0u ],
-				str.size( )
+				str.size()
 			);
 
 			str.erase(
 				std::remove(
-					str.begin( ),
-					str.end( ),
+					str.begin(),
+					str.end(),
 					'\0'
 				),
-				str.end( )
+				str.end()
 			);
 		}
 
 		return str;
 	}
 
-	void seek( const std::streamoff& pos, const std::ios::seekdir dir = std::ios::beg )
+	auto seek( const std::streamoff& pos, const std::ios::seekdir dir = std::ios::beg ) -> void
 	{
 		m_stream.seekg( pos, dir );
 	}
-	std::streamoff tell( )
+
+	auto tell() -> std::streamoff
 	{
-		return m_stream.tellg( );
+		return m_stream.tellg();
 	}
 private:
 	std::ifstream m_stream;
