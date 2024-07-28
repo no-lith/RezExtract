@@ -22,5 +22,3 @@ The project is the result of reverse engineering in public tools posted on the i
 ## How can you help grow the project?
 
 Opening an issue/pull is the best way to contribute to growth.
-
-You can use our [official discord](https://discord.gg/zZDPSBjBjy) to discuss about feature introductions, possible bugs, existing issues or support for other versions of REZ files.
