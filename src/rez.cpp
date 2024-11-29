@@ -266,7 +266,7 @@ void rez::c_rez_file::extract( const std::filesystem::path& output )
 
 	if ( directories.empty() )
 	{
-		REZ_LOG( " - No directory found\n" );
+		log( " - No directory found\n" );
 
 		return;
 	}
@@ -291,7 +291,7 @@ void rez::c_rez_file::extract( const std::filesystem::path& output )
 	//
 	for ( const auto& dir : directories )
 	{
-		REZ_LOG( " - Directory: {:s}\n", dir.m_name );
+		log( " - Directory: {:s}\n", dir.m_name );
 
 		std::filesystem::path path = {};
 
@@ -326,11 +326,11 @@ void rez::c_rez_file::extract( const std::filesystem::path& output )
 
 		for ( const auto& res : dir.m_resource )
 		{
-			REZ_LOG( "  - File: {:s}\n", res.m_name );
+			log( "  - File: {:s}\n", res.m_name );
 
 			auto filename{ res.m_name };
 			if ( filename.empty() )
-				REZ_LOG( "  - Empty resource filename detected\n" );
+				log( "  - Empty resource filename detected\n" );
 
 			if ( res.m_type.size() )
 				filename.append( "." ).append( res.m_type );
@@ -403,8 +403,8 @@ void rez::c_rez_file::extract( const std::filesystem::path& output )
 			}
 			catch ( const std::exception& e )
 			{
-				REZ_LOG( "{:s}\n", e.what() );
-				REZ_PAUSE();
+				log( "{:s}\n", e.what() );
+				pause();
 			}
 		}
 	}
@@ -416,7 +416,7 @@ void rez::extract( const std::vector<std::filesystem::path>& file_path, const st
 	{
 		try
 		{
-			REZ_LOG( "Extracting: {}\n", file.stem().string() );
+			log( "Extracting: {}\n", file.stem().string() );
 
 			// open stream to read
 			auto rez = c_rez_file{ file };
@@ -429,8 +429,8 @@ void rez::extract( const std::vector<std::filesystem::path>& file_path, const st
 		}
 		catch ( const std::exception& e )
 		{
-			REZ_LOG( "[FATAL] {:s}\n", e.what() );
-			REZ_PAUSE();
+			log( "[FATAL] {:s}\n", e.what() );
+			pause();
 		}
 	}
 }

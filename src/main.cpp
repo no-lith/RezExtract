@@ -28,8 +28,8 @@ int main( )
 			}
 			catch ( const std::exception& e )
 			{
-				REZ_LOG( "{:s}\n", e.what() );
-				REZ_PAUSE();
+				rez::log( "{:s}\n", e.what() );
+				rez::pause();
 			}
 		}
 
@@ -41,8 +41,8 @@ int main( )
 			}
 			catch ( const std::exception& e )
 			{
-				REZ_LOG( "{:s}\n", e.what() );
-				REZ_PAUSE();
+				rez::log( "{:s}\n", e.what() );
+				rez::pause();
 			}
 		}
 
@@ -62,5 +62,5 @@ int main( )
 		std::cout << e.what() << std::endl;
 	}
 
-	REZ_PAUSE();
+	rez::pause();
 }
