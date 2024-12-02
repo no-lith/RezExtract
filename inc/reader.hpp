@@ -42,7 +42,7 @@ public:
 			size
 		);
 
-		if ( m_stream.gcount() != size )
+		if ( m_stream.gcount() != static_cast<std::streamsize>(size) )
 			REZ_THROW( " - ifstream: invalid read (Expected: {:d} | Current: {:d}", size, m_stream.gcount() );
 	}
 

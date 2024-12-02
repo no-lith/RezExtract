@@ -81,7 +81,7 @@ void rez::rez_t::read(
 				/**
 				 * save reader pos
 				 */
-				const auto pos = reader.tell();
+				const auto current_pos = reader.tell();
 
 				/**
 				 * recursive read
@@ -91,7 +91,7 @@ void rez::rez_t::read(
 				/**
 				 * restore reader pos
 				 */
-				reader.seek( pos );
+				reader.seek( current_pos );
 			}
 
 			break;
